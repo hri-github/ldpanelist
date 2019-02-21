@@ -107,7 +107,7 @@ server <- function(input, output, session) {
         candf$end <- as.Date(as.numeric(candf$end), origin="1899-12-30")
         candf$end <- if_else(is.na(candf$end), TDATE, candf$end)  # PRO TIP
         
-        agency <- read_xlsx("Format for LD Appointment (mapping).xlsx")
+        agency <- read_xlsx("./Format\ for\ LD\ Appointment\ (mapping).xlsx")
         candf <- left_join(candf, agency)
         candf$minf <- ifelse(is.na(candf$minf), candf$agency, candf$minf)
         
@@ -164,6 +164,7 @@ server <- function(input, output, session) {
               can_i_tibble$pminf[[j]] <- pan_minf$agency[keep]
             }  # for loop 
             can_i_unnest <- unnest(can_i_tibble)
+             ('Finish unnnest 1')
             if (i == 1) {
               can_out <- can_i_unnest
             } else {
