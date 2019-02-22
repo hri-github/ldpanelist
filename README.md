@@ -1,4 +1,4 @@
-# PSD GS app
+# PSD LDPANELIST APP
 
 ## Description
 This is the Docker environment used in production to host the PSD ldpanelist application. 
