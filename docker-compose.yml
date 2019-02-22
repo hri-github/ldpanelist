@@ -1,0 +1,37 @@
+version: '3.2'
+
+# volumes:
+# data - to hold data
+# apps - to hold scripts for the apps
+volumes:
+  data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/data
+      o: bind
+  apps:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/apps
+      o: bind
+  logs:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/logs
+      o: bind
+
+# change ports option below for deployment
+services:
+  shiny:
+    image: psd-ldpanelist-app:latest
+    ports:
+      - "80:80"
+    volumes:
+      - data:/root/data
+      - apps:/root/apps
+      - logs:/root/logs
+    deploy:
+      replicas: 5
+      restart_policy:
+        condition: on-failure
+    tty: true
