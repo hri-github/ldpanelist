@@ -80,8 +80,8 @@ server <- function(input, output, session) {
     req(input$button_match)
     }, {
         output$nodataText <- renderText({ "" })
-        MTHINPUT <- MTHINPUT_R()
-        MTHCUTOFF <- MTHCUTOFF_R()
+        MTHINPUT <- MTHINPUT_R() # 60
+        MTHCUTOFF <- MTHCUTOFF_R() # 6
         DATECUT <- today() - months(MTHINPUT)
         TDATE <- today()
         
@@ -172,9 +172,10 @@ server <- function(input, output, session) {
           }
         })  # withProgress
         
-        can_outW <- reshape2::dcast(can_out, name + agency + minf + start + end ~ pnames, fun.aggregate=length, value.var="pnames", fill=0)
+        # can_outW <- reshape2::dcast(can_out, name + agency + minf + start + end ~ pnames, fun.aggregate=length, value.var="pnames", fill=0)
+        can_outW <- reshape2::dcast(can_out, name + agency + minf + start + end ~ pnames, value.var="timemth", fill=0)
         can_outW[, 6:ncol(can_outW)] <- sapply(can_outW[, 6:ncol(can_outW)],
-                                               function(x) ifelse(x>=1, "FAIL", "PASS"))
+                                               function(x) ifelse(x > MTHCUTOFF, "FAIL", "PASS"))
         can_outW$fail <- apply(can_outW, 1, function(x) 
           paste(colnames(can_outW)[x=="FAIL"], collapse=", ") )
         
@@ -183,7 +184,8 @@ server <- function(input, output, session) {
         out1$fail <- ifelse(is.na(out1$fail), "", out1$fail)
         out1 <- select(out1, -summth)
         
-        can_out1 <- select(can_out, cname=name, cagency=agency, cminf=minf, cstart=start, cend=end, pnames, pperiod, pinterval, pminf)
+        can_out$conflict <- ifelse(can_out$timemth > MTHCUTOFF, "CONFLICT", "PASS")
+        can_out1 <- select(can_out, cname=name, cagency=agency, cminf=minf, cstart=start, cend=end, pnames, pperiod, pinterval, pminf, conflict)
         canprint <- mutate(candf, interval=as.character(interval),
                            period=as.character(period))
         panprint <- mutate(pandf, interval=as.character(interval))
