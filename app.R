@@ -136,7 +136,7 @@ server <- function(input, output, session) {
         withProgress(message = 'Matching', value=0, {
           n <- length(canunique)
           for (i in seq_along(canunique)) {
-            # incProgress(1/n, detail = paste("Candidate", i))
+            incProgress(1/n, detail = paste("Candidate", i))
             can_i <- candf[candf$name==canunique[i], ]
             can_i_tibble <- tbl_df(can_i)
             can_i_tibble$pnames <- vector("list", nrow(can_i_tibble))
