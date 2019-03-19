@@ -136,7 +136,7 @@ server <- function(input, output, session) {
         withProgress(message = 'Matching', value=0, {
           n <- length(canunique)
           for (i in seq_along(canunique)) {
-            incProgress(1/n, detail = paste("Candidate", i))
+            # incProgress(1/n, detail = paste("Candidate", i))
             can_i <- candf[candf$name==canunique[i], ]
             can_i_tibble <- tbl_df(can_i)
             can_i_tibble$pnames <- vector("list", nrow(can_i_tibble))
@@ -162,45 +162,66 @@ server <- function(input, output, session) {
                 can_i_tibble$pinterval[[j]] <- as.character(pan_minf$interval[keep])
               }
               can_i_tibble$pminf[[j]] <- pan_minf$agency[keep]
-            }  # for loop 
+            }  # for j loop 
             can_i_unnest <- unnest(can_i_tibble)
             if (i == 1) {
               can_out <- can_i_unnest
             } else {
               can_out <- rbind.data.frame(can_out, can_i_unnest)
             }
-          }
+          }  # for i loop
         })  # withProgress
         
         # can_outW <- reshape2::dcast(can_out, name + agency + minf + start + end ~ pnames, fun.aggregate=length, value.var="pnames", fill=0)
-        can_outW <- reshape2::dcast(can_out, name + agency + minf + start + end ~ pnames, value.var="timemth", fill=0)
-        can_outW[, 6:ncol(can_outW)] <- sapply(can_outW[, 6:ncol(can_outW)],
-                                               function(x) ifelse(x > MTHCUTOFF, "FAIL", "PASS"))
-        can_outW$fail <- apply(can_outW, 1, function(x) 
-          paste(colnames(can_outW)[x=="FAIL"], collapse=", ") )
+        if (nrow(can_out) > 0) {
+          can_outW <- reshape2::dcast(can_out, name + agency + minf + start + end ~ pnames, value.var="timemth", fill=0)
+          can_outW[, 6:ncol(can_outW)] <- sapply(can_outW[, 6:ncol(can_outW)],
+                                                 function(x) ifelse(x > MTHCUTOFF, "FAIL", "PASS"))
+          can_outW$fail <- apply(can_outW, 1, function(x) 
+            paste(colnames(can_outW)[x=="FAIL"], collapse=", ") )
+          
+          y <- select(can_outW, name, fail, agency)
+          out1 <- left_join(summary1, y, by="name")
+          out1$fail <- ifelse(is.na(out1$fail), "", out1$fail)
+          out1$agency <- ifelse(out1$fail=="", "", out1$agency)
+          out1 <- select(out1, -summth)
+          
+          can_out$conflict <- ifelse(can_out$timemth > MTHCUTOFF, "CONFLICT", "PASS")
+          can_out1 <- select(can_out, cname=name, cagency=agency, cminf=minf, cstart=start, cend=end, pnames, pperiod, pinterval, pminf, conflict)
+          canprint <- mutate(candf, interval=as.character(interval),
+                             period=as.character(period))
+          panprint <- mutate(pandf, interval=as.character(interval))
+          
+          bn <- basename(input$file1$name)
+          params <- data.frame(date_analysed=TDATE, mthcutoff=MTHCUTOFF, lastmonths=MTHINPUT, inputfile=bn)
+          
+          colnames(out1) <- c("candidate_name", "YIS_yrs", "YIS_mths", "work_conflict", "candidate_conflict_agency")
+          colnames(can_out1) <- c("candidate_name", "candidate_agency",	"candidate_ministry_family",	"candidate_startdate", "candidate_enddate",	"panel_name",	"work_conflict_period",	"panel_work_interval", "panel_ministry", "conflict")
+          colnames(canprint) <- c("candidate_name",	"candidate_agency",	"candidate_startdate",	"candidate_enddate", "candidate_ministry_family",	"candidate_work_interval",	"work_month",	"work_year_month")
+          canprint <- select(canprint, -work_month, -work_year_month)
+          colnames(panprint) <- c("panel_name",	"panel_agency",	"panel_startdate",	"panel_enddate",	"panel_work_interval")
+          
+          xllist <- list(All_Candidates=out1, Conflicts=can_out1, Candidates_Recent=canprint, Panelists_Recent=panprint, Parameters=params)
+          fn <- paste0("LD Appointment ", today(), ".xlsx")
+        } else { # can_out has 0 rows
+          out1 <- summary1
+          nocon_df <- data.frame(Conflicts=c("None! Amazing"))
+          
+          canprint <- mutate(candf, interval=as.character(interval),
+                             period=as.character(period))
+          panprint <- mutate(pandf, interval=as.character(interval))
+          
+          bn <- basename(input$file1$name)
+          params <- data.frame(date_analysed=TDATE, mthcutoff=MTHCUTOFF, lastmonths=MTHINPUT, inputfile=bn)
+          
+          colnames(canprint) <- c("candidate_name",	"candidate_agency",	"candidate_startdate",	"candidate_enddate", "candidate_ministry_family",	"candidate_work_interval",	"work_month",	"work_year_month")
+          canprint <- select(canprint, -work_month, -work_year_month)
+          colnames(panprint) <- c("panel_name",	"panel_agency",	"panel_startdate",	"panel_enddate",	"panel_work_interval")
+          
+          xllist <- list(All_Candidates=out1, Conflicts=nocon_df, Candidates_Recent=canprint, Panelists_Recent=panprint, Parameters=params)
+          fn <- paste0("LD Appointment ", today(), ".xlsx")
+        }
         
-        y <- select(can_outW, name, fail, agency)
-        out1 <- left_join(summary1, y)
-        out1$fail <- ifelse(is.na(out1$fail), "", out1$fail)
-        out1 <- select(out1, -summth)
-        
-        can_out$conflict <- ifelse(can_out$timemth > MTHCUTOFF, "CONFLICT", "PASS")
-        can_out1 <- select(can_out, cname=name, cagency=agency, cminf=minf, cstart=start, cend=end, pnames, pperiod, pinterval, pminf, conflict)
-        canprint <- mutate(candf, interval=as.character(interval),
-                           period=as.character(period))
-        panprint <- mutate(pandf, interval=as.character(interval))
-        
-        bn <- basename(input$file1$name)
-        params <- data.frame(date_analysed=TDATE, mthcutoff=MTHCUTOFF, lastmonths=MTHINPUT, inputfile=bn)
-        
-        colnames(out1) <- c("candidate_name", "YIS_yrs", "YIS_mths", "work_conflict", "candidate_conflict_agency")
-        colnames(can_out1) <- c("candidate_name", "candidate_agency",	"candidate_ministry_family",	"candidate_startdate", "candidate_enddate",	"panel_name",	"work_conflict_period",	"panel_work_interval", "panel_ministry")
-        colnames(canprint) <- c("candidate_name",	"candidate_agency",	"candidate_startdate",	"candidate_enddate", "candidate_ministry_family",	"candidate_work_interval",	"work_month",	"work_year_month")
-        canprint <- select(canprint, -work_month, -work_year_month)
-        colnames(panprint) <- c("panel_name",	"panel_agency",	"panel_startdate",	"panel_enddate",	"panel_work_interval")
-        
-        xllist <- list(All_Candidates=out1, Conflicts=can_out1, Candidates_Recent=canprint, Panelists_Recent=panprint, Parameters=params)
-        fn <- paste0("LD Appointment ", today(), ".xlsx")
         # writexl::write_xlsx(xllist, fn)
         
         ## OUTPUT TAB
